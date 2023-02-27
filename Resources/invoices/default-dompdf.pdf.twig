@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+{%- set fallback = app.request is not null ? app.request.locale : 'en' -%}
+{%- set language = model.template.language|default(fallback) -%}
+{%- set isDecimal = true -%}
+{%- set currency = model.currency -%}
+{%- set project = model.query.project -%}
+<html lang="{{ language }}">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}{{ model.invoiceNumber }}-{{ model.customer.company|default(model.customer.name)|u.snake }}{% endblock %}</title>
+    <style>
+        {{ encore_entry_css_source('invoice-pdf')|raw }}
+
+header, footer {
+    position: fixed;
+    width: 100%;
+}
+header {
+    top: -1cm;
+}
+footer {
+    bottom: 0cm;
+}
+
+.page_number:before {
+    content: counter(page);
+}
+    </style>
+</head>
+<body>
+<header name="header">
+    <table class="header">
+        <tr>
+            <td class="title">
+                {{ model.template.title }}
+            </td>
+            <td class="date text-right">
+                {{ 'date'|trans }}: {{ model.invoiceDate|date_short }}
+            </td>
+        </tr>
+    </table>
+</header>
+<footer name="footer">
+    <table class="footer">
+        <tr>
+            <td>
+                <strong>{{ 'contact'|trans }}</strong>:
+                {{ model.template.contact|nl2str(' – ') }}
+                <br>
+                <strong>{{ 'invoice_bank_account'|trans }}</strong>:
+                {{ model.template.paymentDetails|nl2str(' – ') }}
+            </td>
+        </tr>
+    </table>
+</footer>
+
+<main>
+    <table class="addresses">
+        <tr>
+            <td style="width:60%">
+                {{ 'invoice.to'|trans }}
+                <br>
+                <strong>{{ model.customer.company|default(model.customer.name) }}</strong>
+                <br>
+                {{ model.customer.address|nl2br }}
+                {% if model.customer.vatId is not empty %}
+                    <br>
+                    {{ 'vat_id'|trans }}: {{ model.customer.vatId }}
+                {% endif %}
+            </td>
+            <td>
+                {{ 'invoice.from'|trans }}
+                <br>
+                <strong>{{ model.template.company }}</strong>
+                <br>
+                {{ model.template.address|trim|nl2br }}
+                {% if model.template.vatId is not empty %}
+                    <br>
+                    {{ 'vat_id'|trans }}:
+                    {{ model.template.vatId }}
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+
+    <p>
+        {{ 'invoice.number'|trans }}:
+        {{ model.invoiceNumber }}
+
+        <br>
+        {{ 'invoice.due_days'|trans }}:
+        {{ model.dueDate|date_short }}
+
+        {% if model.customer.number is not empty %}
+            <br>
+            {{ 'number'|trans }}:
+            {{ model.customer.number }}
+        {% endif %}
+
+        {% if project is not null and project.orderNumber is not empty %}
+            <br>
+            {{ 'orderNumber'|trans }}:
+            {{ project.orderNumber }}
+        {% endif %}
+    </p>
+
+    {% if model.customer.invoiceText is not empty%}
+        <p>{{ model.customer.invoiceText|md2html }}</p>
+    {% endif %}
+
+    <table class="items">
+        <thead>
+            <tr>
+                <th class="first"><strong>{{ 'date'|trans }}</strong></th>
+                <th><strong>{{ 'description'|trans }}</strong></th>
+                <th class="text-right"><strong>{{ 'unit_price'|trans }}</strong></th>
+                <th class="text-right"><strong>{{ 'amount'|trans }}</strong></th>
+                <th class="last text-right"><strong>{{ 'total_rate'|trans }}</strong></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for id, entry in model.calculator.entries %}
+            <!-- CONTENT_PART -->
+            {% set duration = entry.duration|duration(isDecimal) %}
+            {% if entry.fixedRate %}
+                {% set rate = entry.fixedRate %}
+                {% set duration = entry.amount|amount %}
+            {% else %}
+                {% set rate = entry.hourlyRate %}
+            {% endif %}
+            <tr>
+                <td nowrap class="first text-nowrap">{{ entry.begin|date_short }}</td>
+                <td contenteditable="true">
+                    {% if entry.description is not empty %}
+                        {{ entry.description|nl2br }}
+                    {% else %}
+                        {% if entry.activity is not null %}{{ entry.activity.name }} / {% endif %}{{ entry.project.name }}
+                    {% endif %}
+                </td>
+                <td nowrap class="text-nowrap text-right">{{ rate|money(currency) }}</td>
+                <td nowrap class="text-nowrap text-right">{{ duration }}</td>
+                <td nowrap class="last text-nowrap text-right">{{ entry.rate|money(currency) }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+            {% if model.calculator.tax > 0 or not model.isHideZeroTax() %}
+            <tr>
+                <td colspan="4" class="text-right">
+                    {{ 'invoice.subtotal'|trans }}
+                </td>
+                <td class="last text-right">{{ model.calculator.subtotal|money(currency) }}</td>
+            </tr>
+            <tr>
+                <td colspan="4" class="text-right">
+                    {{ 'invoice.tax'|trans }} ({{ model.calculator.vat }}%)
+                </td>
+                <td class="last text-right">{{ model.calculator.tax|money(currency) }}</td>
+            </tr>
+            {% endif %}
+            <tr>
+                <td colspan="4" class="text-right text-nowrap">
+                    <strong>{{ 'invoice.total'|trans }}</strong>
+                </td>
+                <td class="last text-right">
+                    <strong>{{ model.calculator.total|money(currency) }}</strong>
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+
+    {% if model.template.paymentTerms is not empty %}
+    <div class="paymentTerms">
+        {{ model.template.paymentTerms|md2html }}
+    </div>
+    {% endif %}
+<main>
+<script type="text/php">
+// Show Page n of N (in your native language), at the bottom right of each page.
+/*
+if (isset($pdf)) {
+    $w = $pdf->get_width();
+    $h = $pdf->get_height();
+
+    $size = 8;
+    $font = $pdf->get_dompdf()->get_option("defaultFont");
+    $text_height = $fontMetrics->getFontHeight($font, $size);
+
+    $x = $w - 72;
+    $y = $h - $text_height - 24;
+    //$canvas = $pdf->get_dompdf()->get_canvas();
+
+    $translated = "{{
+        'export.page_of'|trans({
+            '%page%': '{PAGE_NUM}',
+            '%pages%': '{PAGE_COUNT}'})
+    }}";
+
+    $pdf->page_text($x, $y, $translated, $font, $size);
+}
+*/
+</script>
+</body>
+</html>

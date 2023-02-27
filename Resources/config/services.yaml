@@ -1,0 +1,14 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    KimaiPlugin\DompdfRendererBundle\:
+        resource: '../../*'
+        exclude:
+          - '../../Resources/'
+
+    KimaiPlugin\DompdfRendererBundle\Pdf\DompdfConverter:
+        arguments:
+            $cacheDirectory: '%kernel.cache_dir%'

@@ -1,0 +1,3 @@
+dompdf_renderer:
+    renderer: 'dompdf'
+

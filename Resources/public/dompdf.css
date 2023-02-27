@@ -1,0 +1,13 @@
+header, footer {
+	position: fixed;
+	width: 100%;
+}
+header {
+	top: -1cm;
+}
+footer {
+	bottom: 0cm;
+}
+.page_number:before {
+	content: counter(page);
+}

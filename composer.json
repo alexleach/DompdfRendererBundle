@@ -1,0 +1,35 @@
+{
+    "name": "alexleach/dompdf-renderer",
+    "description": "A Kimai 2 plugin which renders PDFs using Dompdf",
+    "homepage": "https://www.github.com/alexleach/kimai-dompdf-renderer",
+    "type": "kimai-plugin",
+    "version": "0.1",
+    "license": "MIT",
+    "keywords": [
+        "kimai",
+        "kimai-plugin",
+        "pdf",
+        "dompdf"
+    ],
+    "authors": [
+        {
+            "name": "Alex Leach",
+            "homepage": "https://github.com/alexleach"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "KimaiPlugin\\DompdfRendererBundle\\": ""
+        }
+    },
+    "extra": {
+        "kimai": {
+            "require": 20000,
+            "name": "Alternative PDF Renderer",
+            "comment": "might actually work on earlier versions, not tested..."
+        }
+    },
+    "require": {
+        "dompdf/dompdf": "^2.0"
+    }
+}
