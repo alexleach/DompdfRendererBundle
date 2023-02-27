@@ -1,16 +1,20 @@
 <!DOCTYPE html>
-{%- set fallback = app.request is not null ? app.request.locale : 'en' -%}
-{%- set language = model.template.language|default(fallback) -%}
-{%- set isDecimal = true -%}
-{%- set currency = model.currency -%}
-{%- set project = model.query.project -%}
+{% set fallback = app.request is not null ? app.request.locale : 'en' %}
+{% set language = model.template.language|default(fallback) %}
+{% set isDecimal = model.template.decimalDuration|default(false) %}
+{% set currency = model.currency %}
 <html lang="{{ language }}">
 <head>
     <meta charset="UTF-8">
     <title>{% block title %}{{ model.invoiceNumber }}-{{ model.customer.company|default(model.customer.name)|u.snake }}{% endblock %}</title>
     <style>
+        {# The default template's css file. #}
         {{ encore_entry_css_source('invoice-pdf')|raw }}
 
+        {# How to move the css to an external file? Ideally from a minified sass file? #}
+        {# Just commenting these out for now, as haven't figured out how to include them.... #}
+        {# { encore_entry_css_source('bundles/dompdfrenderer/dompdf')|raw } #}
+        {# { asset('bundles/dompdfrenderer/dompdf.css') } #}
 header, footer {
     position: fixed;
     width: 100%;
@@ -35,20 +39,24 @@ footer {
                 {{ model.template.title }}
             </td>
             <td class="date text-right">
-                {{ 'date'|trans }}: {{ model.invoiceDate|date_short }}
+                {{ 'label.date'|trans }}: {{ model.invoiceDate|date_short }}
             </td>
         </tr>
     </table>
 </header>
+
 <footer name="footer">
     <table class="footer">
         <tr>
             <td>
-                <strong>{{ 'contact'|trans }}</strong>:
-                {{ model.template.contact|nl2str(' – ') }}
+                <strong>{{ 'label.contact'|trans }}</strong>:
+                {{ model.template.contact|nl2str(' &ndash; ') }}
                 <br>
-                <strong>{{ 'invoice_bank_account'|trans }}</strong>:
-                {{ model.template.paymentDetails|nl2str(' – ') }}
+                <strong>{{ 'label.invoice_bank_account'|trans }}</strong>:
+                {{ model.template.paymentDetails|nl2str(' &ndash; ') }}
+            </td>
+            <td align="right" id="pagenumplaceholder">
+            {# Can we get dompdf to print {PAGE_COUNT} at this element's position? #}
             </td>
         </tr>
     </table>
@@ -65,7 +73,7 @@ footer {
                 {{ model.customer.address|nl2br }}
                 {% if model.customer.vatId is not empty %}
                     <br>
-                    {{ 'vat_id'|trans }}: {{ model.customer.vatId }}
+                    {{ 'label.vat_id'|trans }}: {{ model.customer.vatId }}
                 {% endif %}
             </td>
             <td>
@@ -76,7 +84,7 @@ footer {
                 {{ model.template.address|trim|nl2br }}
                 {% if model.template.vatId is not empty %}
                     <br>
-                    {{ 'vat_id'|trans }}:
+                    {{ 'label.vat_id'|trans }}:
                     {{ model.template.vatId }}
                 {% endif %}
             </td>
@@ -93,29 +101,25 @@ footer {
 
         {% if model.customer.number is not empty %}
             <br>
-            {{ 'number'|trans }}:
+            {{ 'label.number'|trans }}:
             {{ model.customer.number }}
         {% endif %}
 
-        {% if project is not null and project.orderNumber is not empty %}
+        {% if model.query.project is not empty and model.query.project.orderNumber is not empty %}
             <br>
-            {{ 'orderNumber'|trans }}:
-            {{ project.orderNumber }}
+            {{ 'label.orderNumber'|trans }}:
+            {{ model.query.project.orderNumber }}
         {% endif %}
     </p>
-
-    {% if model.customer.invoiceText is not empty%}
-        <p>{{ model.customer.invoiceText|md2html }}</p>
-    {% endif %}
 
     <table class="items">
         <thead>
             <tr>
-                <th class="first"><strong>{{ 'date'|trans }}</strong></th>
-                <th><strong>{{ 'description'|trans }}</strong></th>
-                <th class="text-right"><strong>{{ 'unit_price'|trans }}</strong></th>
-                <th class="text-right"><strong>{{ 'amount'|trans }}</strong></th>
-                <th class="last text-right"><strong>{{ 'total_rate'|trans }}</strong></th>
+                <th class="first"><strong>{{ 'label.date'|trans }}</strong></th>
+                <th><strong>{{ 'label.description'|trans }}</strong></th>
+                <th class="text-right"><strong>{{ 'label.unit_price'|trans }}</strong></th>
+                <th class="text-right"><strong>{{ 'label.amount'|trans }}</strong></th>
+                <th class="last text-right"><strong>{{ 'label.total_rate'|trans }}</strong></th>
             </tr>
         </thead>
         <tbody>
@@ -128,7 +132,7 @@ footer {
             {% else %}
                 {% set rate = entry.hourlyRate %}
             {% endif %}
-            <tr>
+            <tr{# class="{{ cycle(['odd', 'even'], id) }}"#}>
                 <td nowrap class="first text-nowrap">{{ entry.begin|date_short }}</td>
                 <td contenteditable="true">
                     {% if entry.description is not empty %}
@@ -174,10 +178,10 @@ footer {
         {{ model.template.paymentTerms|md2html }}
     </div>
     {% endif %}
-<main>
+</main>
 <script type="text/php">
 // Show Page n of N (in your native language), at the bottom right of each page.
-/*
+// Annoyingly has to be positioned with an absolute x and y...
 if (isset($pdf)) {
     $w = $pdf->get_width();
     $h = $pdf->get_height();
@@ -198,7 +202,6 @@ if (isset($pdf)) {
 
     $pdf->page_text($x, $y, $translated, $font, $size);
 }
-*/
 </script>
 </body>
 </html>
