@@ -26,6 +26,7 @@ final class DompdfConverter implements HtmlToPdfConverter
     {
         $options['tempDir'] = $this->cacheDirectory;
         $options['isPhpEnabled'] = true;
+        $options['isRemoteEnabled'] = true;
 
         if (\array_key_exists('fonts', $options)) {
             $options['fontDir'] = $this->fileHelper->getDataDirectory('fonts');
