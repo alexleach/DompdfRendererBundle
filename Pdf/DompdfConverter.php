@@ -4,7 +4,7 @@ namespace KimaiPlugin\DompdfRendererBundle\Pdf;
 
 use App\Constants;
 use App\Utils\FileHelper;
-use App\Pdf\HtmlToPdfConverter;
+use App\Utils\HtmlToPdfConverter;
 
 use Dompdf\Dompdf;
 use Dompdf\Options;

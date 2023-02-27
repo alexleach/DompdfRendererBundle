@@ -3,7 +3,8 @@
 namespace KimaiPlugin\DompdfRendererBundle\DependencyInjection;
 
 use App\Plugin\AbstractPluginExtension;
-use App\Pdf\HtmlToPdfConverter;
+
+use App\Utils\HtmlToPdfConverter;
 
 use KimaiPlugin\DompdfRendererBundle\Pdf\DompdfConverter;
 
