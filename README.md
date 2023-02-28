@@ -31,11 +31,21 @@ First unzip the plugin into to your Kimai `plugins` directory:
 unzip DompdfRendererBundle-x.x.zip -d <kimai path>/var/plugins/
 ```
 
-And then reload Kimai and install all migrations:
+And then reload Kimai:
 
 ```bash
 bin/console kimai:reload
 ```
+
+DompdfRendererBundle has one dependency (i.e. dompdf), which I thought should
+be installed automatically with the above command, but for some reason dompdf
+wasn't installing automatically for me. So, while in the top level folder, run
+the following command to install dompdf:
+
+```bash
+composer require dompdf/dompdf
+```
+
 
 The plugin should appear, and will now be used as the PDF renderer instead of MPdf.
 
