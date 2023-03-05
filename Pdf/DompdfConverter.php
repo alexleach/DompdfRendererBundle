@@ -12,6 +12,8 @@ use Dompdf\Options;
 
 final class DompdfConverter implements HtmlToPdfConverter
 {
+    const TOTAL_PAGE_COUNT_PLACEHOLDER = "__TPC__";
+
     public function __construct(private FileHelper $fileHelper, private string $cacheDirectory)
     {
     }
@@ -53,8 +55,29 @@ final class DompdfConverter implements HtmlToPdfConverter
         // Render as PDF
         $dompdf->render();
 
+        // Replace __TPC__ with the total number of pages.
+        // N.B. We only know the page count after the pdf is rendered.
+        $this->injectPageCount($dompdf);
+
         // Output to stream
-        return $dompdf->output();
+        return $dompdf->output($options);
+    }
+
+    // Replace __TPC__ with the total number of pages
+    // Taken from https://github.com/vianetz/pdf-generator/commit/26cce3805fcea8254e45adda30e379444064701e
+    private function injectPageCount(Dompdf $dompdf)
+    {
+        $canvas = $dompdf->getCanvas();
+        $pdf = $canvas->get_cpdf();
+        $n_pages = $canvas->get_page_count();
+
+        foreach ($pdf->objects as &$o) {
+            if ($o['t'] === 'contents') {
+                $o['c'] = str_replace(
+                    self::TOTAL_PAGE_COUNT_PLACEHOLDER, $n_pages, $o['c']
+                );
+            }
+        }
     }
 }
 
