@@ -1,0 +1,461 @@
+{#
+You can override the following variables in your own template to customize
+the template:
+
+#}
+{%- set marginTop = '21mm' -%}
+{%- set marginBottom = '12mm' -%}
+{%- set marginLeft = 25 -%}
+{%- set marginRight = 20 -%}
+
+{# Logo URL #}
+{% set logoUrl = logoUrl|default(config('theme.branding.logo')) %}
+
+{# set color for horizontal lines and borders #}
+{% set accentColor = accentColor|default('#40514e') %}
+
+{# set font family #}
+{#
+  dompdf doesn't support a huge number of fonts beyond what the pdf standards
+  require. See:
+  https://github.com/dompdf/dompdf/wiki/About-Fonts-and-Character-Encoding
+
+  You can load any font from a URL though, and it will be downloaded and used
+  automatically...
+#}
+{% set fontFamily = fontFamily|default("'Helvetica', sans-serif") %}
+{% set fontUrl = '' %}
+
+{#
+Set rawContact to true if you want to put raw HTML into the Contact field of
+the Invoice Template (in the web UI).
+
+It will need to be nested in one or more <tr> tags, so gives full flexibility
+to the number of table rows the Contact entry contains. e.g.
+<tr>
+  <th>Email</th>
+  <td><a href="mailto:me@foo.com">me@foo.com</a></td>
+</tr>
+<tr>
+  [...]
+</tr>
+#}
+{% set rawContact = true %} {#rawContact|default(false) %} #}
+
+{# set an introduction text that is displayed before the invoice positions #}
+{% set introductionText = introductionText|default(false) %}
+
+{# set the sender address that is displayed in the address window #}
+{% set invoiceSenderAddress = invoiceSenderAddress|default(model.template.address|nl2str(' &bull; ')) %}
+
+<!DOCTYPE html>
+{% set fallback = app.request is not null ? app.request.locale : 'en' %}
+{% set language = model.template.language|default(fallback) %}
+{% set isDecimal = model.template.decimalDuration|default(false) %}
+{% set currency = model.currency %}
+<html lang="{{ language }}">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>{% block title %}{{ model.invoiceNumber }}-{{ model.customer.company|default(model.customer.name)|u.snake }}{% endblock %}</title>
+    {% block invoice_styles %}
+    <style type="text/css">
+
+      @font-face {
+        font-family: {{ fontFamily|raw }};
+        font-style: normal;
+        font-weight: normal;
+        {% if fontUrl %}
+        src: url({{ fontUrl }});
+        {% endif %}
+      }
+
+      @page {
+        margin-top: {{ marginTop }};
+        margin-bottom: {{ marginBottom }};
+      }
+
+      body {
+        font-family: {{ fontFamily|raw }};
+        font-size: 10pt;
+        line-height: 14pt;
+        border-bottom: 1px solid {{ accentColor }};
+      }
+
+      header {
+        top: -{{ marginTop }};
+        position: fixed;
+        width: 100%;
+      }
+
+      .header {
+        font-weight: bold;
+      }
+
+      .header-logo {
+        text-align: center;
+        vertical-align: middle;
+        padding: 1em;
+      }
+
+      .header-logo-image {
+        max-width: 177.5mm;
+        max-height: 15mm;
+      }
+
+      .invoice-intro {
+        border-top: 1px solid {{ accentColor }};
+        width: 100%;
+      }
+
+      .invoice-address {
+        float:left;
+        padding: 0;
+      }
+
+      address {
+        font-style: normal;
+      }
+
+      .address-sender {
+        font-size: 8pt;
+        border-bottom: 1px dotted {{ accentColor }};
+        margin-bottom: 0.5em;
+      }
+
+      .address-recipient {
+        padding-top: 1mm;
+      }
+
+      .invoice-details {
+        float: right;
+        font-size: 8pt;
+        font-weight: normal;
+      }
+
+      .invoice-details th {
+        padding-right: 2mm;
+      }
+
+      table {
+        border-spacing: 0;
+        border-collapse: separate;
+      }
+
+      th, td {
+        padding: 0;
+      }
+
+      table th {
+        text-align: left;
+      }
+
+      tr.blank-row {
+        line-height: 0.8em;
+      }
+
+      .content {
+        /* the invoice-details section floats, so need to apply a clear to
+         * position the main content beneath */
+        clear: both;
+        margin-top: -1em;
+      }
+
+      .introduction-text {
+        margin-bottom: 10pt;
+      }
+
+      tfoot {
+        border-top: 1px solid {{ accentColor }};
+      }
+
+      .items th {
+        color: {{ accentColor }};
+        border-bottom: 1px solid {{ accentColor }};
+      }
+
+      .items th,
+      .items td {
+        padding: 1mm 0.5em;
+        vertical-align: top;
+      }
+
+      .text-nowrap {
+        white-space: nowrap;
+      }
+
+      .text-left {
+        text-align: left;
+      }
+
+      .text-right {
+        text-align: right;
+      }
+
+      .text-small,
+      small {
+        font-size: 8pt;
+      }
+
+      footer {
+        /* fixed will print the footer on every page */
+        position: fixed;
+        bottom: 0;
+        text-align: center;
+        width: 100%;
+        /* My footer is 2 lines tall, so move at least 2 lines down into margin */
+        margin-bottom: -2.8em;
+        line-height: normal;
+        font-size: 8pt;
+      }
+
+      footer.first-page-only {
+        /* absolute will show the footer on just the first page */
+        position: absolute;
+      }
+
+      /* Put the page numbers on the right of the footer */
+      footer.page-num {
+        text-align: right;
+        /*
+         * This is about as good a right-alignment as I can get,
+         * when replacing __TPC__ with the total page count.
+         * The cw (character width) unit doesn't appear to work.
+         * &zwnj; (0x200c or \u{8204}) doesn't work with non-unicode fonts.
+         * So -5ex appears to right-align Page 1 of 1 at least.
+         * */
+        right: -5ex;
+      }
+
+      /* Running page counter */
+      .page-count:before {
+        content: counter(page);
+      }
+
+    </style>
+    {% endblock %}
+</head>
+
+<body>
+<header>
+    {% block header %}
+        <div class="header">
+            {% block header_logo %}
+                {% if logoUrl %}
+                <div class="header-logo">
+                    <img src="{{ logoUrl }}" class="header-logo-image" alt="" />
+                </div>
+                {% endif %}
+            {% endblock %}
+        </div>
+    {% endblock %}
+</header>
+
+{% block footer %}
+<!-- This part of the footer I want just on the first page -->
+<footer class="first-page-only">
+    {{ model.template.company }} | {{ model.template.address|nl2str(' | ') }}<br />
+    {{ model.template.paymentDetails| nl2str(' | ') }}
+</footer>
+
+<!-- Page number we want on every page -->
+<footer class="page-num">
+    {{ 'export.page_of' | trans({
+        '%page%': '<span class="page-count"></span>',
+        '%pages%': '__TPC__'
+    }) | raw }}
+    <!-- Adding two line breaks aligns the page num with the footer's top -->
+    <br /><br />
+</footer>
+{% endblock %}
+
+<div class="invoice-intro">
+    {% block invoice_address %}
+    <div class="invoice-address">
+        {% block invoice_address_recipient %}
+        <address class="address-recipient">
+            {{ model.customer.company|default(model.customer.name) }}<br>
+            {% if model.customer.contact %}
+                {{ model.customer.contact }}<br>
+            {% endif %}
+            {{ model.customer.address|nl2br }}<br>
+            {{ model.customer.country|country_name }}
+        </address>
+        {% endblock %}
+    </div>
+    {% endblock %}
+
+    {% block invoice_details %}
+    <div class="invoice-details">
+        {% block invoice_address_sender %}
+        <address class="address-sender">
+            <table>
+                <tr><th>{{ model.template.company }}</th></tr>
+                <tr><td>{{ invoiceSenderAddress|raw }}</td></tr>
+            </table>
+        </address>
+        {% endblock %}
+
+        <table>
+            {% block invoice_details_invoice_number %}
+                <tr>
+                    <th>{{ 'invoice.number'|trans }}:</th>
+                    <td>{{ model.invoiceNumber }}</td>
+                </tr>
+            {% endblock %}
+            {% block invoice_details_invoice_date %}
+                <tr>
+                    <th>{{ 'label.date'|trans }}:</th>
+                    <td>{{ model.invoiceDate|date_short }}</td>
+                </tr>
+            {% endblock %}
+            {% block invoice_details_service_date %}
+                <tr>
+                    <th>{{ 'invoice.service_date'|trans }}:</th>
+                    <td>{{ model.query.begin|date('d.m.Y') }}
+                        &ndash; {{ model.query.end|date('d.m.Y') }}</td>
+                </tr>
+            {% endblock %}
+            {% block invoice_details_due_date %}
+                <tr>
+                    <th>{{ 'invoice.due_days'|trans }}:</td>
+                    <td>{{ model.dueDate|date_short }}</td>
+                </tr>
+            {% endblock %}
+            {% block invoice_details_customer_vatid %}
+                {% if model.template.vatId %}
+                    <tr>
+                        <th>{{ 'label.vat_id'|trans }}:</th>
+                        <td>{{ model.customer.vatId }}</td>
+                    </tr>
+                    <tr class="blank-row"><td colspan="2">&nbsp;</td></tr>
+                {% endif %}
+            {% endblock %}
+
+            {% block invoice_details_contact %}
+            {#
+              In the demo data, the Contact field has three modes of
+              contact in it: Phone, Email and Web. Frankly, this looks
+              really shit. So, have put an option to allow raw html in
+              the Contact field
+             #}
+              {% if rawContact %}
+                  {{ model.template.contact|raw }}
+              {% else %}
+                  <tr>
+                      <th>{{ 'label.contact'|trans }}:</th>
+                      <td>{{ model.template.contact|nl2br }}</td>
+                  </tr>
+              {% endif %}
+            {% endblock %}
+        </table>
+    </div>
+    {% endblock %}
+</div>
+
+<br>
+
+{% block invoice_content %}
+<div class="content">
+    <!-- CONTENT_PART -->
+    {% block invoice_content_subject %}
+    <div class="subject">
+        <h1>{{ model.template.title }}</h1>
+    </div>
+    {% endblock %}
+
+    {% block invoice_content_introduction %}
+        {% if introductionText %}
+        <div class="introduction-text">
+            <p>{{ introductionText }}</p>
+        </div>
+        {% endif %}
+    {% endblock %}
+
+    {% block invoice_content_items %}
+    <div class="items">
+        <table width="100%">
+            <thead>
+            <tr>
+                <th class="text-left">{{ 'label.date'|trans }}</th>
+                <th class="text-left">{{ 'label.description'|trans }}</th>
+                <th class="text-right text-nowrap">{{ 'label.amount'|trans }}</th>
+                <th class="text-right text-nowrap">{{ 'label.unit_price'|trans }}</th>
+                <th class="text-right text-nowrap">{{ 'label.total_rate'|trans }}</th>
+            </tr>
+            </thead>
+
+            <tbody>
+            {% for entry in model.calculator.entries %}
+                <!-- CONTENT_PART -->
+                {% set duration = entry.duration|duration(isDecimal) %}
+                {% if entry.fixedRate is not null %}
+                    {% set rate = entry.fixedRate %}
+                    {% set duration = entry.amount|amount %}
+                {% else %}
+                    {% set rate = entry.hourlyRate %}
+                {% endif %}
+                <tr>
+                    <td class="text-left">{{ entry.begin|date("d/m/y") }}</td>
+                    <td class="text-left">
+                        {{ entry.project.name }}:
+                        {% if entry.activity is not null %}
+                            <strong>
+                                {{ entry.activity.name }}
+                            </strong>
+                        {% endif %}
+                        {% if entry.description is not empty %}
+                            <br><small>{{ entry.description }}</small>
+                        {% endif %}
+                    </td>
+                    <td class="text-right text-nowrap">{{ duration }}</td>
+                    <td class="text-right text-nowrap">{{ rate|money(currency) }}</td>
+                    <td class="text-right text-nowrap">{{ entry.rate|money(currency) }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+
+            <tfoot>
+            {% if model.calculator.tax > 0 or not model.isHideZeroTax() %}
+                <tr>
+                    <td colspan="3" class="text-right text-nowrap">
+                        {{ 'invoice.subtotal'|trans }}
+                    </td>
+                    <td class="text-right text-nowrap">{{ model.calculator.subtotal|money(currency) }}</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td colspan="3" class="text-right text-nowrap">
+                        {{ 'invoice.tax'|trans }} ({{ model.calculator.vat }}%)
+                    </td>
+                    <td class="text-right text-nowrap">{{ model.calculator.tax|money(currency) }}</td>
+                    <td></td>
+                </tr>
+            {% endif %}
+            <tr>
+                <td colspan="4" class="text-right text-nowrap">
+                    <strong>{{ 'invoice.total'|trans }}</strong>
+                </td>
+                <td class="text-right text-nowrap">
+                    <strong>{{ model.calculator.total|money(currency) }}</strong>
+                </td>
+            </tr>
+            </tfoot>
+        </table>
+        {% endblock %}
+    </div>
+
+    {% block payment_terms %}
+        {% if model.template.paymentTerms is not empty %}
+            <div class="paymentTerms text-small">
+                <p>
+                    <strong>{{ 'label.payment_terms'|trans }}</strong>:
+                    {{ model.template.paymentTerms|raw }}
+                </p>
+            </div>
+        {% endif %}
+    {% endblock %}
+</div>
+{% endblock %}
+
+</body>
+</html>
