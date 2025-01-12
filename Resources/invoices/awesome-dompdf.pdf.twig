@@ -164,8 +164,8 @@ to the number of table rows the Contact entry contains. e.g.
         margin-bottom: 10pt;
       }
 
-      tfoot {
-        border-top: 1px solid {{ accentColor }};
+      .summary-table {
+        margin-left: auto;
       }
 
       .items th {
@@ -304,7 +304,7 @@ to the number of table rows the Contact entry contains. e.g.
             {% endblock %}
             {% block invoice_details_invoice_date %}
                 <tr>
-                    <th>{{ 'label.date'|trans }}:</th>
+                    <th>{{ 'date'|trans }}:</th>
                     <td>{{ model.invoiceDate|date_short }}</td>
                 </tr>
             {% endblock %}
@@ -324,7 +324,7 @@ to the number of table rows the Contact entry contains. e.g.
             {% block invoice_details_customer_vatid %}
                 {% if model.template.vatId %}
                     <tr>
-                        <th>{{ 'label.vat_id'|trans }}:</th>
+                        <th>{{ 'vat_id'|trans }}:</th>
                         <td>{{ model.customer.vatId }}</td>
                     </tr>
                     <tr class="blank-row"><td colspan="2">&nbsp;</td></tr>
@@ -342,7 +342,7 @@ to the number of table rows the Contact entry contains. e.g.
                   {{ model.template.contact|raw }}
               {% else %}
                   <tr>
-                      <th>{{ 'label.contact'|trans }}:</th>
+                      <th>{{ 'contact'|trans }}:</th>
                       <td>{{ model.template.contact|nl2br }}</td>
                   </tr>
               {% endif %}
@@ -376,11 +376,11 @@ to the number of table rows the Contact entry contains. e.g.
         <table width="100%">
             <thead>
             <tr>
-                <th class="text-left">{{ 'label.date'|trans }}</th>
-                <th class="text-left">{{ 'label.description'|trans }}</th>
-                <th class="text-right text-nowrap">{{ 'label.amount'|trans }}</th>
-                <th class="text-right text-nowrap">{{ 'label.unit_price'|trans }}</th>
-                <th class="text-right text-nowrap">{{ 'label.total_rate'|trans }}</th>
+                <th class="text-left">{{ 'date'|trans }}</th>
+                <th class="text-left">{{ 'description'|trans }}</th>
+                <th class="text-right text-nowrap">{{ 'amount'|trans }}</th>
+                <th class="text-right text-nowrap">{{ 'unit_price'|trans }}</th>
+                <th class="text-right text-nowrap">{{ 'total_rate'|trans }}</th>
             </tr>
             </thead>
 
@@ -413,33 +413,29 @@ to the number of table rows the Contact entry contains. e.g.
                 </tr>
             {% endfor %}
             </tbody>
+          </table>
 
-            <tfoot>
-            {% if model.calculator.tax > 0 or not model.isHideZeroTax() %}
+        <table class="summary-table text-right">
+            <tbody>
                 <tr>
-                    <td colspan="3" class="text-right text-nowrap">
-                        {{ 'invoice.subtotal'|trans }}
-                    </td>
-                    <td class="text-right text-nowrap">{{ model.calculator.subtotal|money(currency) }}</td>
-                    <td></td>
+                    <td>{{ 'invoice.total_working_time'|trans }}</td>
+                    <td>{{ invoice['invoice.duration_decimal'] }}</td>
+                </tr>
+                {% if model.calculator.tax > 0 or not model.isHideZeroTax() %}
+                <tr>
+                    <td>{{ 'invoice.subtotal'|trans }}</td>
+                    <td>{{ model.calculator.subtotal|money(currency) }}</td>
                 </tr>
                 <tr>
-                    <td colspan="3" class="text-right text-nowrap">
-                        {{ 'invoice.tax'|trans }} ({{ model.calculator.vat }}%)
-                    </td>
-                    <td class="text-right text-nowrap">{{ model.calculator.tax|money(currency) }}</td>
-                    <td></td>
+                    <td>{{ 'invoice.tax'|trans }} ({{ model.calculator.vat }}%)</td>
+                    <td>{{ model.calculator.tax|money(currency) }}</td>
                 </tr>
-            {% endif %}
-            <tr>
-                <td colspan="4" class="text-right text-nowrap">
-                    <strong>{{ 'invoice.total'|trans }}</strong>
-                </td>
-                <td class="text-right text-nowrap">
-                    <strong>{{ model.calculator.total|money(currency) }}</strong>
-                </td>
-            </tr>
-            </tfoot>
+                {% endif %}
+                <tr>
+                    <td><strong>{{ 'invoice.total'|trans }}</strong></td>
+                    <td><strong>{{ model.calculator.total|money(currency) }}</strong></td>
+                </tr>
+            </tbody>
         </table>
         {% endblock %}
     </div>
@@ -448,8 +444,8 @@ to the number of table rows the Contact entry contains. e.g.
         {% if model.template.paymentTerms is not empty %}
             <div class="paymentTerms text-small">
                 <p>
-                    <strong>{{ 'label.payment_terms'|trans }}</strong>:
-                    {{ model.template.paymentTerms|raw }}
+                    <strong>{{ 'payment_terms'|trans }}</strong>:
+                    {{ model.template.paymentTerms|trim|nl2br }}
                 </p>
             </div>
         {% endif %}
