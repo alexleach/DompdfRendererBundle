@@ -277,9 +277,27 @@ to the number of table rows the Contact entry contains. e.g.
             {% if model.customer.contact %}
                 {{ model.customer.contact }}<br>
             {% endif %}
-            {{ model.customer.address|nl2br }}<br>
-            {{ model.customer.country|country_name }}
+            {% if model.customer.addressLine1 %}
+                {# Then go with new address style #}
+                {{ model.customer.addressLine1 }}<br>
+                {% if model.customer.addressLine2 %}
+                    {{ model.customer.addressLine2 }}<br>
+                {% endif %}
+                {% if model.customer.addressLine3 %}
+                    {{ model.customer.addressLine3 }}<br>
+                {% endif %}
+            {% else %}
+                {{ model.customer.address|nl2br }}<br>
+            {% endif %}
+            {{ model.customer.country|country_name }} {{ model.customer.postCode }}
         </address>
+        {% endblock %}
+        {% block invoice_details_customer_vatid %}
+            {% if model.template.vatId %}
+                <div>
+                    <span>{{ 'vat_id'|trans }}: {{ model.customer.vatId }}</span>
+                </div>
+            {% endif %}
         {% endblock %}
     </div>
     {% endblock %}
@@ -320,15 +338,6 @@ to the number of table rows the Contact entry contains. e.g.
                     <th>{{ 'invoice.due_days'|trans }}:</td>
                     <td>{{ model.dueDate|date_short }}</td>
                 </tr>
-            {% endblock %}
-            {% block invoice_details_customer_vatid %}
-                {% if model.template.vatId %}
-                    <tr>
-                        <th>{{ 'vat_id'|trans }}:</th>
-                        <td>{{ model.customer.vatId }}</td>
-                    </tr>
-                    <tr class="blank-row"><td colspan="2">&nbsp;</td></tr>
-                {% endif %}
             {% endblock %}
 
             {% block invoice_details_contact %}
@@ -371,6 +380,8 @@ to the number of table rows the Contact entry contains. e.g.
         {% endif %}
     {% endblock %}
 
+    {% set project_costs = {} %}
+
     {% block invoice_content_items %}
     <div class="items">
         <table width="100%">
@@ -387,6 +398,7 @@ to the number of table rows the Contact entry contains. e.g.
             <tbody>
             {% for entry in model.calculator.entries %}
                 <!-- CONTENT_PART -->
+
                 {% set duration = entry.duration|duration(isDecimal) %}
                 {% if entry.fixedRate is not null %}
                     {% set rate = entry.fixedRate %}
@@ -394,10 +406,20 @@ to the number of table rows the Contact entry contains. e.g.
                 {% else %}
                     {% set rate = entry.hourlyRate %}
                 {% endif %}
+
+                {# Calculate per-project pricing #}
+                {% set _project = entry.project.name %}
+                {% if project_costs[_project] is not defined %}
+                  {% set project_costs = project_costs|merge({ (_project): entry.rate }) %}
+                {% else %}
+                  {% set _project_running_total = project_costs[_project] + entry.rate %}
+                  {% set project_costs = project_costs|merge({ (_project): _project_running_total }) %}
+                {% endif %}
+
                 <tr>
                     <td class="text-left">{{ entry.begin|date("d/m/y") }}</td>
                     <td class="text-left">
-                        {{ entry.project.name }}:
+                        {{ _project }}:
                         {% if entry.activity is not null %}
                             <strong>
                                 {{ entry.activity.name }}
@@ -439,6 +461,27 @@ to the number of table rows the Contact entry contains. e.g.
         </table>
         {% endblock %}
     </div>
+
+    {% block project_totals %}
+    {#
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for project, project_cost in project_costs %}
+          <tr>
+            <th>{{ project }}</th>
+            <td>{{ project_cost|money(currency) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    #}
+    {% endblock %}
 
     {% block payment_terms %}
         {% if model.template.paymentTerms is not empty %}

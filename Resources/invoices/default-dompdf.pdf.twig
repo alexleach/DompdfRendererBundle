@@ -62,7 +62,19 @@ footer {
                 <br>
                 <strong>{{ model.customer.company|default(model.customer.name) }}</strong>
                 <br>
-                {{ model.customer.address|nl2br }}
+                {% if model.customer.addressLine1 %}
+                    {# Then go with new address style #}
+                    {{ model.customer.addressLine1 }}<br>
+                    {% if model.customer.addressLine2 %}
+                        {{ model.customer.addressLine2 }}<br>
+                    {% endif %}
+                    {% if model.customer.addressLine3 %}
+                        {{ model.customer.addressLine3 }}<br>
+                    {% endif %}
+                {% else %}
+                    {{ model.customer.address|nl2br }}<br>
+                {% endif %}
+                {{ model.customer.country|country_name }} {{ model.customer.postCode }}
                 {% if model.customer.vatId is not empty %}
                     <br>
                     {{ 'vat_id'|trans }}: {{ model.customer.vatId }}
